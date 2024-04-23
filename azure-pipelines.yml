@@ -1,0 +1,36 @@
+trigger:
+- none
+
+pool:
+  vmImage: 'windows-latest'  # Change if needed based on your agent pool configuration
+
+variables:
+  solutionName: 'YourSolutionName.sln'  # Replace with your solution name
+  buildConfiguration: 'Release'  # Change if needed
+  project: $(System.DefaultWorkingDirectory)  # Current directory
+  artifactsDir: $(Build.ArtifactStagingDirectory)
+
+steps:
+- script: dotnet restore $(solutionName)
+  displayName: 'Restore packages'
+
+- script: dotnet build $(solutionName) --configuration $(buildConfiguration)
+  displayName: 'Build solution'
+
+- publish: $(project)/bin/$(buildConfiguration)/**
+  artifact: 'drop'
+  displayName: 'Publish application'
+
+- publish: $(artifactsDir)/drop/$(Build.BuildNumber)/*.zip
+  artifact: 'applicationZip'
+  displayName: 'Publish application zip'
+
+- condition: succeeded()
+  post: true
+  steps:
+  - release: $(Release.DefinitionName)  # Release pipeline name (if created)
+    displayName: 'Release to local machine'
+    inputs:
+      artifactName: 'applicationZip'
+      azureSubscriptionConnection: 'your_azure_subscription'  # Optional for Azure deployment
+      # Other release pipeline inputs if needed
